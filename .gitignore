@@ -1,0 +1,22 @@
+# Frontend
+plantai/node_modules/
+plantai/.next/
+plantai/out/
+plantai/build/
+plantai/.env*
+plantai/*.tsbuildinfo
+
+# Backend
+plantai-backend/venv/
+plantai-backend/.venv/
+plantai-backend/__pycache__/
+plantai-backend/*.pyc
+plantai-backend/.env
+plantai-backend/instance/
+
+# General
+.DS_Store
+*.log
+.claude/
+.vscode/
+.idea/
