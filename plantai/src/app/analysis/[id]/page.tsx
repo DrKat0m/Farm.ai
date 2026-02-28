@@ -60,6 +60,8 @@ export default function AnalysisPage() {
                 organic_matter_pct: soilData.organicMatter,
                 drainage: soilData.drainage,
             }, property.acreage || 10);
+        } catch {
+            // Error is displayed in the AgentSwarm component
         } finally {
             setSwarmLaunching(false);
         }

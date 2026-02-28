@@ -307,7 +307,7 @@ export default function AgentSwarm() {
                 drainage: analysis.soilData.drainage,
             }, property.acreage || 10);
         } catch (e) {
-            setSwarmError(e instanceof Error ? e.message : 'Swarm execution failed');
+            setSwarmError(e instanceof Error ? e.message : 'Swarm execution failed. Check that the backend is running.');
         }
     };
 
@@ -335,7 +335,7 @@ export default function AgentSwarm() {
                         </div>
                     </div>
                     <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                        3-agent sequential pipeline · Gemini 1.5 Flash · gemini-1.5-flash
+                        3-agent sequential pipeline · Gemini 2.5 Flash · gemini-2.5-flash
                     </p>
                 </div>
 
@@ -360,13 +360,17 @@ export default function AgentSwarm() {
             </div>
 
             {swarmError && (
-                <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{
+                <div className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center justify-between" style={{
                     background: 'rgba(239,68,68,0.08)',
                     border: '1px solid rgba(239,68,68,0.2)',
                     color: '#f87171',
                     fontFamily: 'var(--font-mono)',
                 }}>
-                    ✗ {swarmError}
+                    <span>✗ {swarmError}</span>
+                    <button onClick={handleLaunch} className="px-3 py-1 rounded-lg text-xs font-medium ml-4 shrink-0"
+                        style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                        Retry
+                    </button>
                 </div>
             )}
 

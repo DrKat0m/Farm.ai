@@ -18,7 +18,7 @@ from services import (
     calculate_economic_projection
 )
 
-GEMINI_API_KEY = "AIzaSyA1XjuBKDNWfHHnBEYUGiBmXmuukWky5aU"
+GEMINI_API_KEY = "AIzaSyAtu1hTs-soM0FfSvB-31RjYoELqLpTHgM"
 gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
 
 
