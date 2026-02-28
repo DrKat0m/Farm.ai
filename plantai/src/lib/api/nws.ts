@@ -1,7 +1,7 @@
 export async function getWeatherAlerts(lat: number, lng: number): Promise<string[]> {
     try {
         const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lng.toFixed(4)}`, {
-            headers: { 'User-Agent': 'PlantAI/1.0 (contact@plantai.app)' },
+            headers: { 'User-Agent': 'Farm.ai/1.0 (contact@farm.ai)' },
         });
         if (!pointRes.ok) return [];
         const point = await pointRes.json();
@@ -11,7 +11,7 @@ export async function getWeatherAlerts(lat: number, lng: number): Promise<string
 
         const alertRes = await fetch(
             `https://api.weather.gov/alerts/active?zone=${zoneId}`,
-            { headers: { 'User-Agent': 'PlantAI/1.0 (contact@plantai.app)' } }
+            { headers: { 'User-Agent': 'Farm.ai/1.0 (contact@farm.ai)' } }
         );
         if (!alertRes.ok) return [];
 

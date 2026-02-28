@@ -13,6 +13,8 @@ const spring = { duration: 0.4, ease: [0.16, 1, 0.3, 1] as [number, number, numb
 export default function FarmPage() {
     const router = useRouter();
     const { analysis, coordinates, property, address } = useAppStore();
+    const weatherCondition = useAppStore((s) => s.weatherCondition);
+    const setWeatherCondition = useAppStore((s) => s.setWeatherCondition);
     const [layout, setLayout] = useState('max-yield');
     const [hour, setHour] = useState(14);
     const [dayOfYear, setDayOfYear] = useState(() => {
@@ -51,7 +53,7 @@ export default function FarmPage() {
             <header className="frosted-header flex items-center justify-between px-6 shrink-0 z-30" style={{ height: 56 }}>
                 <div className="flex items-center gap-4">
                     <button onClick={() => router.push('/map')} className="text-sm uppercase tracking-[0.2em] font-semibold"
-                        style={{ color: 'var(--color-primary)' }}>PlantAI</button>
+                        style={{ color: 'var(--color-primary)' }}>Farm.ai</button>
                     <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         3D Visualization — {address?.displayName.split(',').slice(0, 2).join(',')}
                     </span>
@@ -74,6 +76,7 @@ export default function FarmPage() {
                     hour={hour}
                     dayOfYear={dayOfYear}
                     acreage={property.acreage || 5}
+                    weatherCondition={weatherCondition}
                 />
 
                 {/* Layout Toggle */}
@@ -133,6 +136,34 @@ export default function FarmPage() {
                             className="w-full h-1 rounded-full appearance-none cursor-pointer"
                             style={{ background: 'var(--color-border)', accentColor: 'var(--color-primary)' }}
                         />
+                    </div>
+
+                    {/* Weather Condition */}
+                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+                        <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                            Weather Preview
+                        </div>
+                        <div className="flex gap-1">
+                            {([
+                                { id: 'clear' as const, label: 'Clear' },
+                                { id: 'rain' as const, label: 'Rain' },
+                                { id: 'snow' as const, label: 'Snow' },
+                            ]).map(w => (
+                                <button
+                                    key={w.id}
+                                    onClick={() => setWeatherCondition(w.id)}
+                                    className="flex-1 px-2 py-1.5 rounded-lg text-xs transition-all"
+                                    style={{
+                                        background: weatherCondition === w.id ? 'var(--color-primary)' : 'transparent',
+                                        color: weatherCondition === w.id ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                                        fontWeight: weatherCondition === w.id ? 600 : 400,
+                                        border: weatherCondition === w.id ? 'none' : '1px solid var(--color-border)',
+                                    }}
+                                >
+                                    {w.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </motion.div>
 

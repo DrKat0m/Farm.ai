@@ -10,7 +10,7 @@ export async function geocodeAddress(query: string): Promise<{
     const encoded = encodeURIComponent(query);
     const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1&countrycodes=us`,
-        { headers: { 'User-Agent': 'PlantAI/1.0 (contact@plantai.app)' } }
+        { headers: { 'User-Agent': 'Farm.ai/1.0 (contact@farm.ai)' } }
     );
 
     if (!res.ok) return [];

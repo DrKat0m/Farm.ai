@@ -132,7 +132,7 @@ export default function MapPage() {
                     className="text-sm uppercase tracking-[0.2em] font-semibold"
                     style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-body)' }}
                 >
-                    PlantAI
+                    Farm.ai
                 </button>
                 <div className="flex items-center gap-3">
                     {address && (

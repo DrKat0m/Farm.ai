@@ -5,7 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/lib/store';
 import { getNDVILabel } from '@/lib/api/ndvi';
-import { fetchPointInfo } from '@/lib/apiClient';
+import { fetchPointInfo, fetchRecommendations } from '@/lib/apiClient';
 
 interface MapCanvasProps {
     onPolygonComplete?: (polygon: GeoJSON.Feature, acreage: number, centroid: { lat: number; lng: number }) => void;
@@ -21,6 +21,10 @@ export default function MapCanvas({ onPolygonComplete }: MapCanvasProps) {
         lat: number; lng: number; x: number; y: number;
         soil?: string; ph?: number; drainage?: string;
         elevation?: number; ndvi?: number; ndviLabel?: string; ndviColor?: string;
+    } | null>(null);
+    const [recoPopup, setRecoPopup] = useState<{
+        x: number; y: number;
+        name: string; yieldScore: number; soilMatch: number; acreage: number;
     } | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
 
@@ -123,6 +127,64 @@ export default function MapCanvas({ onPolygonComplete }: MapCanvasProps) {
                     'circle-stroke-color': '#0a0d0a',
                     'circle-stroke-width': 2,
                 },
+            });
+
+            // ── Recommendation parcels ─────────────────────────────────────
+            map.current.addSource('reco-parcels', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] },
+            });
+            map.current.addLayer({
+                id: 'reco-fill',
+                type: 'fill',
+                source: 'reco-parcels',
+                paint: { 'fill-color': '#fb923c', 'fill-opacity': 0.2 },
+            });
+            map.current.addLayer({
+                id: 'reco-stroke',
+                type: 'line',
+                source: 'reco-parcels',
+                paint: { 'line-color': '#fb923c', 'line-width': 2, 'line-opacity': 0.8 },
+            });
+            map.current.addLayer({
+                id: 'reco-glow',
+                type: 'line',
+                source: 'reco-parcels',
+                paint: { 'line-color': '#fb923c', 'line-width': 6, 'line-opacity': 0.15, 'line-blur': 4 },
+            });
+
+            // Fetch recommendations
+            if (coordinates) {
+                fetchRecommendations(coordinates.lat, coordinates.lng)
+                    .then(geojson => {
+                        if (map.current?.getSource('reco-parcels')) {
+                            (map.current.getSource('reco-parcels') as maplibregl.GeoJSONSource).setData(geojson);
+                        }
+                    })
+                    .catch(err => console.error('Recommendations error:', err));
+            }
+
+            // Click handler for recommendation parcels
+            map.current.on('click', 'reco-fill', (e) => {
+                if (!e.features?.length) return;
+                const props = e.features[0].properties;
+                setRecoPopup({
+                    x: e.point.x,
+                    y: e.point.y,
+                    name: props?.name || 'Recommended Parcel',
+                    yieldScore: props?.projected_yield || 0,
+                    soilMatch: props?.soil_match_score || 0,
+                    acreage: props?.acreage || 0,
+                });
+                e.originalEvent.stopPropagation();
+            });
+
+            // Cursor change on hover
+            map.current.on('mouseenter', 'reco-fill', () => {
+                if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+            });
+            map.current.on('mouseleave', 'reco-fill', () => {
+                if (map.current && !isDrawing) map.current.getCanvas().style.cursor = '';
             });
         });
 
@@ -423,6 +485,55 @@ export default function MapCanvas({ onPolygonComplete }: MapCanvasProps) {
                         >
                             Close
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Recommendation Popup */}
+            {recoPopup && (
+                <div
+                    className="absolute z-30 w-[260px] rounded-xl overflow-hidden"
+                    style={{
+                        left: Math.min(recoPopup.x, (typeof window !== 'undefined' ? window.innerWidth : 1000) - 280),
+                        top: recoPopup.y - 10,
+                        transform: 'translate(-50%, -100%)',
+                        background: 'rgba(17, 22, 18, 0.92)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(251, 146, 60, 0.4)',
+                        animation: 'popupIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                >
+                    <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(251, 146, 60, 0.2)' }}>
+                        <div className="text-xs mb-1" style={{ color: '#fb923c' }}>✨ AI Recommended Parcel</div>
+                        <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{recoPopup.name}</div>
+                    </div>
+                    <div className="px-4 py-3 grid grid-cols-2 gap-3">
+                        <div>
+                            <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Yield Match</div>
+                            <div className="text-lg font-medium" style={{ fontFamily: 'var(--font-mono)', color: '#fb923c' }}>{recoPopup.yieldScore}%</div>
+                        </div>
+                        <div>
+                            <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Soil Match</div>
+                            <div className="text-lg font-medium" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>{recoPopup.soilMatch}%</div>
+                        </div>
+                    </div>
+                    <div className="px-4 py-2 flex justify-between items-center" style={{ borderTop: '1px solid rgba(251, 146, 60, 0.2)' }}>
+                        <span className="text-[10px]" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>{recoPopup.acreage} acres</span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setRecoPopup(null)}
+                                className="text-[10px] hover:underline"
+                                style={{ color: 'var(--color-text-muted)' }}
+                            >
+                                Close
+                            </button>
+                            <button
+                                className="text-[10px] px-3 py-1 rounded-full font-medium"
+                                style={{ background: '#fb923c', color: '#0a0d0a' }}
+                            >
+                                Run Full Analysis
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

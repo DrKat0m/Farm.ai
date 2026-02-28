@@ -1,7 +1,30 @@
 import axios from 'axios';
-import type { AnalysisData, SoilData, ClimateData, CropScore, EconomicScenario } from './store';
+import type { AnalysisData, SoilData, ClimateData, CropScore, EconomicScenario, ChatMessage } from './store';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+
+// ─── Data source citations ───────────────────────────────────────────────────
+
+export interface Source {
+    id: number;
+    name: string;
+    url: string;
+    category: 'soil' | 'climate' | 'satellite' | 'crop' | 'economic';
+}
+
+export const DATA_SOURCES: Source[] = [
+    { id: 1, name: 'USDA SSURGO', url: 'https://sdmdataaccess.nrcs.usda.gov/', category: 'soil' },
+    { id: 2, name: 'Open-Meteo Climate API', url: 'https://open-meteo.com/', category: 'climate' },
+    { id: 3, name: 'Copernicus Sentinel-2', url: 'https://dataspace.copernicus.eu/', category: 'satellite' },
+    { id: 4, name: 'USDA NASS', url: 'https://quickstats.nass.usda.gov/', category: 'crop' },
+    { id: 5, name: 'Open Elevation API', url: 'https://open-elevation.com/', category: 'soil' },
+    { id: 6, name: 'NWS Weather Alerts', url: 'https://api.weather.gov/', category: 'climate' },
+    { id: 7, name: 'USDA ERS', url: 'https://www.ers.usda.gov/', category: 'economic' },
+];
+
+export function getSourcesByCategory(category: Source['category']): Source[] {
+    return DATA_SOURCES.filter(s => s.category === category);
+}
 
 // ─── Raw backend response types ───────────────────────────────────────────────
 
@@ -80,6 +103,32 @@ export async function fetchAnalysis(
     const { data } = await axios.post<AnalyzeResponse>(`${BASE_URL}/api/analyze`, {
         coordinates,
         area_acres,
+    });
+    return data;
+}
+
+// ─── Chat & Recommendation API calls ─────────────────────────────────────────
+
+export async function fetchChatResponse(
+    message: string,
+    history: ChatMessage[],
+    context?: Record<string, unknown>
+): Promise<string> {
+    const { data } = await axios.post<{ reply: string }>(`${BASE_URL}/api/chat`, {
+        message,
+        history: history.map(m => ({ role: m.role, content: m.content })),
+        context,
+    });
+    return data.reply;
+}
+
+export async function fetchRecommendations(
+    lat: number,
+    lng: number
+): Promise<GeoJSON.FeatureCollection> {
+    const { data } = await axios.post<GeoJSON.FeatureCollection>(`${BASE_URL}/api/recommendations`, {
+        lat,
+        lng,
     });
     return data;
 }

@@ -2,11 +2,13 @@
 
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import TerrainMesh from './TerrainMesh';
 import CropModel from './CropModel';
-import SunSimulator from './SunSimulator';
-import type { CropScore } from '@/lib/store';
+import Atmosphere from './Atmosphere';
+import WeatherSystem from './WeatherSystem';
+import PostProcessing from './PostProcessing';
+import type { CropScore, WeatherCondition } from '@/lib/store';
 
 interface FarmSceneProps {
     crops: CropScore[];
@@ -16,6 +18,7 @@ interface FarmSceneProps {
     hour: number;
     dayOfYear: number;
     acreage: number;
+    weatherCondition: WeatherCondition;
 }
 
 function generateCropPositions(crops: CropScore[], layout: string, acreage: number): { type: string; pos: [number, number, number] }[] {
@@ -50,7 +53,7 @@ function generateCropPositions(crops: CropScore[], layout: string, acreage: numb
     return positions;
 }
 
-export default function FarmScene({ crops, layout, lat, lng, hour, dayOfYear, acreage }: FarmSceneProps) {
+export default function FarmScene({ crops, layout, lat, lng, hour, dayOfYear, acreage, weatherCondition }: FarmSceneProps) {
     const cropPositions = useMemo(
         () => generateCropPositions(crops, layout, acreage),
         [crops, layout, acreage]
@@ -60,15 +63,21 @@ export default function FarmScene({ crops, layout, lat, lng, hour, dayOfYear, ac
         <Canvas
             camera={{ position: [0, 15, 20], fov: 45 }}
             shadows
-            gl={{ antialias: true, toneMapping: 6 }}
+            gl={{ antialias: true, toneMapping: 6, toneMappingExposure: 1.0 }}
             style={{ background: '#0a0d0a' }}
         >
             <Suspense fallback={null}>
-                <fog attach="fog" args={['#0a0d0a', 40, 80]} />
+                <Atmosphere
+                    lat={lat}
+                    lng={lng}
+                    hour={hour}
+                    dayOfYear={dayOfYear}
+                    weatherCondition={weatherCondition}
+                />
 
-                <SunSimulator lat={lat} lng={lng} hour={hour} dayOfYear={dayOfYear} />
+                <WeatherSystem condition={weatherCondition} terrainSize={30} />
 
-                <TerrainMesh size={30} resolution={48} elevation={0.4} />
+                <TerrainMesh size={30} resolution={48} elevation={0.4} weatherCondition={weatherCondition} />
 
                 {cropPositions.map((crop, i) => (
                     <CropModel
@@ -87,7 +96,7 @@ export default function FarmScene({ crops, layout, lat, lng, hour, dayOfYear, ac
                     maxDistance={50}
                 />
 
-                <Environment preset="sunset" />
+                <PostProcessing />
             </Suspense>
         </Canvas>
     );

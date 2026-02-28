@@ -1,17 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
+import { executeSwarm } from '@/lib/agentOrchestrator';
 import AnimatedNumber from '@/components/ui/AnimatedNumber';
 import ProgressRing from '@/components/ui/ProgressRing';
+import CitationPill from '@/components/ui/CitationPill';
+import SourcesFooter from '@/components/ui/SourcesFooter';
+import AgentSwarm from '@/components/analysis/AgentSwarm';
+import DailyFarmPlan from '@/components/analysis/DailyFarmPlan';
+import AgronomistChat from '@/components/chat/AgronomistChat';
 
 const spring = { duration: 0.4, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] };
 
 export default function AnalysisPage() {
     const router = useRouter();
-    const { analysis, property, address, activeTab, setActiveTab } = useAppStore();
+    const { analysis, property, address, activeTab, setActiveTab, swarmStatus } = useAppStore();
     const { soilData, climateData, cropMatrix, economics, ndviValue } = analysis;
+    const [swarmLaunching, setSwarmLaunching] = useState(false);
 
     const tabs = [
         { id: 'overview', label: 'Overview' },
@@ -19,6 +27,8 @@ export default function AnalysisPage() {
         { id: 'climate', label: 'Climate' },
         { id: 'crops', label: 'Crops' },
         { id: 'economics', label: 'Economics' },
+        { id: 'swarm', label: 'Agent Swarm' },
+        { id: 'daily', label: "Today's Plan" },
     ];
 
     if (!soilData && !climateData) {
@@ -39,22 +49,75 @@ export default function AnalysisPage() {
         (soilData.drainage === 'Well drained' ? 30 : 20)
     ) : 0;
 
+    const handleDeploySwarm = async () => {
+        if (!soilData || swarmStatus === 'running') return;
+        setSwarmLaunching(true);
+        setActiveTab('swarm');
+        try {
+            await executeSwarm({
+                mu_name: soilData.name,
+                ph_range: [soilData.ph - 0.5, soilData.ph + 0.5],
+                organic_matter_pct: soilData.organicMatter,
+                drainage: soilData.drainage,
+            }, property.acreage || 10);
+        } finally {
+            setSwarmLaunching(false);
+        }
+    };
+
+    const isSwarmRunning = swarmStatus === 'running';
+
     return (
         <div className="w-screen h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
             <header className="frosted-header flex items-center justify-between px-6 shrink-0 z-30" style={{ height: 56 }}>
                 <div className="flex items-center gap-4">
                     <button onClick={() => router.push('/map')} className="text-sm uppercase tracking-[0.2em] font-semibold"
-                        style={{ color: 'var(--color-primary)' }}>PlantAI</button>
+                        style={{ color: 'var(--color-primary)' }}>Farm.ai</button>
                     <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         {address?.displayName.split(',').slice(0, 2).join(',')} · {property.acreage} acres
                     </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                     <button onClick={() => router.push('/map')} className="px-4 py-1.5 rounded-lg text-xs"
                         style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>Map</button>
                     <button onClick={() => router.push(`/farm/${analysis.id}`)} className="px-4 py-1.5 rounded-lg text-xs"
                         style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>3D View</button>
+
+                    {/* Deploy Autonomous Swarm Button */}
+                    <button
+                        onClick={handleDeploySwarm}
+                        disabled={isSwarmRunning || swarmLaunching}
+                        className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        style={{
+                            background: isSwarmRunning || swarmStatus === 'complete'
+                                ? 'var(--color-primary-glow)'
+                                : 'var(--color-primary)',
+                            color: isSwarmRunning || swarmStatus === 'complete'
+                                ? 'var(--color-primary)'
+                                : 'var(--color-bg)',
+                            border: isSwarmRunning || swarmStatus === 'complete'
+                                ? '1px solid rgba(74,222,128,0.4)'
+                                : 'none',
+                            fontFamily: 'var(--font-mono)',
+                            letterSpacing: '0.04em',
+                            opacity: isSwarmRunning ? 0.85 : 1,
+                            boxShadow: !isSwarmRunning && swarmStatus !== 'complete'
+                                ? '0 0 16px rgba(74,222,128,0.25)'
+                                : 'none',
+                        }}>
+                        {isSwarmRunning ? (
+                            <>
+                                <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }}
+                                    className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--color-primary)' }} />
+                                Executing...
+                            </>
+                        ) : swarmStatus === 'complete' ? (
+                            <>✓ Swarm Complete</>
+                        ) : (
+                            <>⬡ Deploy Autonomous Swarm</>
+                        )}
+                    </button>
                 </div>
             </header>
 
@@ -63,17 +126,29 @@ export default function AnalysisPage() {
                 <nav className="w-48 shrink-0 p-4 flex flex-col gap-1" style={{ background: 'var(--color-surface)', borderRight: '1px solid var(--color-border)' }}>
                     {tabs.map(tab => (
                         <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                            className="text-left px-4 py-2.5 rounded-lg text-sm transition-colors"
+                            className="text-left px-4 py-2.5 rounded-lg text-sm transition-colors relative"
                             style={{
                                 background: activeTab === tab.id ? 'var(--color-surface-2)' : 'transparent',
                                 color: activeTab === tab.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                                 fontWeight: activeTab === tab.id ? 500 : 400,
-                            }}>{tab.label}</button>
+                            }}>
+                            {tab.label}
+                            {tab.id === 'swarm' && isSwarmRunning && (
+                                <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                    style={{ background: 'var(--color-primary)' }} />
+                            )}
+                            {tab.id === 'swarm' && swarmStatus === 'complete' && (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px]"
+                                    style={{ color: 'var(--color-primary)' }}>✓</span>
+                            )}
+                        </button>
                     ))}
                 </nav>
 
                 {/* Content */}
                 <main className="flex-1 overflow-y-auto p-8">
+
                     {/* OVERVIEW TAB */}
                     {activeTab === 'overview' && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring}>
@@ -96,7 +171,7 @@ export default function AnalysisPage() {
                             {/* NDVI + Zone */}
                             <div className="grid grid-cols-2 gap-4 mb-8">
                                 <div className="glass p-6 rounded-xl">
-                                    <div className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>Vegetation Health (NDVI)</div>
+                                    <div className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>Vegetation Health (NDVI)<CitationPill sourceId={3} /></div>
                                     <div className="flex items-center gap-4">
                                         <ProgressRing value={(ndviValue || 0) * 100} color={ndviValue && ndviValue > 0.6 ? 'var(--color-primary)' : 'var(--color-heat)'} />
                                         <div>
@@ -152,10 +227,9 @@ export default function AnalysisPage() {
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring}>
                             <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Soil Composition</h2>
                             <div className="glass p-6 rounded-xl mb-6">
-                                <div className="text-lg mb-1" style={{ color: 'var(--color-text-primary)' }}>{soilData.name}</div>
+                                <div className="text-lg mb-1" style={{ color: 'var(--color-text-primary)' }}>{soilData.name}<CitationPill sourceId={1} /></div>
                                 <div className="text-xs mb-6" style={{ color: 'var(--color-text-secondary)' }}>{soilData.drainage}</div>
 
-                                {/* Composition Bars */}
                                 <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>Composition</div>
                                 <div className="flex h-6 rounded-full overflow-hidden mb-4">
                                     <div style={{ width: `${soilData.sand}%`, background: '#c2956b' }} title={`Sand: ${soilData.sand.toFixed(0)}%`} />
@@ -169,7 +243,6 @@ export default function AnalysisPage() {
                                 </div>
                             </div>
 
-                            {/* pH + Metrics */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="glass p-6 rounded-xl">
                                     <div className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>pH Level</div>
@@ -212,7 +285,7 @@ export default function AnalysisPage() {
                     {/* CLIMATE TAB */}
                     {activeTab === 'climate' && climateData && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring}>
-                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Climate Profile</h2>
+                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Climate Profile<CitationPill sourceId={2} /></h2>
                             <div className="glass p-6 rounded-xl mb-6">
                                 <div className="text-[10px] uppercase tracking-widest mb-4" style={{ color: 'var(--color-text-muted)' }}>Monthly Temperature & Precipitation</div>
                                 <div className="flex items-end gap-1 h-48">
@@ -232,7 +305,6 @@ export default function AnalysisPage() {
                                                         background: i === currentMonth ? 'var(--color-primary)' : 'var(--color-surface-2)',
                                                         border: `1px solid ${i === currentMonth ? 'var(--color-primary)' : 'var(--color-border)'}`,
                                                     }} />
-                                                    {/* Precip bar */}
                                                     <div className="absolute bottom-0 w-[60%] rounded-t-sm" style={{
                                                         height: `${(m.precip / 120) * 40}%`,
                                                         background: 'rgba(56, 189, 248, 0.3)',
@@ -268,7 +340,7 @@ export default function AnalysisPage() {
                     {/* CROPS TAB */}
                     {activeTab === 'crops' && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring}>
-                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Crop Compatibility</h2>
+                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Crop Compatibility<CitationPill sourceId={4} /></h2>
                             <div className="glass rounded-xl overflow-hidden">
                                 <table className="w-full">
                                     <thead>
@@ -314,8 +386,7 @@ export default function AnalysisPage() {
                     {/* ECONOMICS TAB */}
                     {activeTab === 'economics' && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={spring}>
-                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Economic Projections</h2>
-                            {/* Scenarios */}
+                            <h2 className="text-2xl mb-6" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Economic Projections<CitationPill sourceId={7} /></h2>
                             <div className="grid grid-cols-3 gap-4 mb-8">
                                 {economics.map((scenario, i) => (
                                     <motion.div key={scenario.name} className="glass-bright p-6 rounded-xl" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: i * 0.08 }}>
@@ -327,7 +398,6 @@ export default function AnalysisPage() {
                                         <div className="text-2xl font-medium mb-4" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-primary)' }}>
                                             ${scenario.totalRevenue.toLocaleString()}<span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>/yr</span>
                                         </div>
-                                        {/* Revenue breakdown bars */}
                                         <div className="space-y-2 mb-4">
                                             {scenario.crops.map(c => (
                                                 <div key={c.name} className="flex items-center gap-2">
@@ -350,7 +420,6 @@ export default function AnalysisPage() {
                                 ))}
                             </div>
 
-                            {/* Regional Benchmark */}
                             <div className="glass p-6 rounded-xl mb-6">
                                 <div className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>Regional Benchmark</div>
                                 <div className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>Similar properties within 50 miles:</div>
@@ -369,7 +438,6 @@ export default function AnalysisPage() {
                                 </div>
                             </div>
 
-                            {/* Grants */}
                             <div className="glass p-6 rounded-xl">
                                 <div className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>Grant Eligibility</div>
                                 {[
@@ -387,8 +455,25 @@ export default function AnalysisPage() {
                             </div>
                         </motion.div>
                     )}
+
+                    {/* AGENT SWARM TAB */}
+                    {activeTab === 'swarm' && (
+                        <AgentSwarm />
+                    )}
+
+                    {/* DAILY PLAN TAB */}
+                    {activeTab === 'daily' && (
+                        <DailyFarmPlan />
+                    )}
+
+                    {/* Sources Footer */}
+                    <SourcesFooter />
+
                 </main>
             </div>
+
+            {/* AI Agronomist Chat */}
+            <AgronomistChat />
         </div>
     );
 }

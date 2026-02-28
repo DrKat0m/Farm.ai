@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PlantAI — Agricultural Intelligence Platform",
+  title: "Farm.ai — Agricultural Intelligence Platform",
   description: "Know your land before you plant a single seed. Soil composition, climate history, vegetation health, and crop intelligence for your exact property.",
 };
 

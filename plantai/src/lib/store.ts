@@ -50,6 +50,8 @@ export interface CropScore {
     rotationTips: string[];
 }
 
+export type WeatherCondition = 'clear' | 'rain' | 'snow';
+
 export interface EconomicScenario {
     name: string;
     description: string;
@@ -77,6 +79,45 @@ export interface PropertyData {
     acreage: number;
     centroid: Coordinates | null;
 }
+
+// ── Chat Types ───────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: number;
+}
+
+// ── Swarm Agent Result Types ──────────────────────────────────────────────────
+
+export interface RemediationResult {
+    status_log: string[];
+    amendment_plan: {
+        fertilizer_type: string;
+        estimated_tons: number;
+    };
+}
+
+export interface BOMItem {
+    name: string;
+    quantity: string;
+    estimated_cost: number;
+}
+
+export interface ProcurementResult {
+    status_log: string[];
+    bill_of_materials: BOMItem[];
+    total_cost: number;
+}
+
+export interface FinanceResult {
+    status_log: string[];
+    grant_name: string;
+    drafted_application: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface LoadingStep {
     label: string;
@@ -111,6 +152,32 @@ interface AppState {
     // UI
     activeTab: string;
     setActiveTab: (tab: string) => void;
+
+    // Weather visualization
+    weatherCondition: WeatherCondition;
+    setWeatherCondition: (c: WeatherCondition) => void;
+
+    // ── Agent Swarm State ─────────────────────────────────────────────────────
+    swarmStatus: 'idle' | 'running' | 'complete';
+    currentAgent: 0 | 1 | 2 | 3;
+    remediationResult: RemediationResult | null;
+    procurementResult: ProcurementResult | null;
+    financeResult: FinanceResult | null;
+    setSwarmStatus: (s: 'idle' | 'running' | 'complete') => void;
+    setCurrentAgent: (n: 0 | 1 | 2 | 3) => void;
+    setRemediationResult: (r: RemediationResult) => void;
+    setProcurementResult: (r: ProcurementResult) => void;
+    setFinanceResult: (r: FinanceResult) => void;
+    resetSwarm: () => void;
+
+    // Chat
+    chatMessages: ChatMessage[];
+    chatOpen: boolean;
+    chatLoading: boolean;
+    addChatMessage: (msg: ChatMessage) => void;
+    setChatOpen: (open: boolean) => void;
+    setChatLoading: (loading: boolean) => void;
+    clearChat: () => void;
 
     // Reset
     reset: () => void;
@@ -174,6 +241,37 @@ export const useAppStore = create<AppState>((set) => ({
     activeTab: 'overview',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
+    weatherCondition: 'clear',
+    setWeatherCondition: (c) => set({ weatherCondition: c }),
+
+    // ── Agent Swarm ───────────────────────────────────────────────────────────
+    swarmStatus: 'idle',
+    currentAgent: 0,
+    remediationResult: null,
+    procurementResult: null,
+    financeResult: null,
+    setSwarmStatus: (s) => set({ swarmStatus: s }),
+    setCurrentAgent: (n) => set({ currentAgent: n }),
+    setRemediationResult: (r) => set({ remediationResult: r }),
+    setProcurementResult: (r) => set({ procurementResult: r }),
+    setFinanceResult: (r) => set({ financeResult: r }),
+    resetSwarm: () => set({
+        swarmStatus: 'idle',
+        currentAgent: 0,
+        remediationResult: null,
+        procurementResult: null,
+        financeResult: null,
+    }),
+
+    // ── Chat ──────────────────────────────────────────────────────────────────
+    chatMessages: [],
+    chatOpen: false,
+    chatLoading: false,
+    addChatMessage: (msg) => set((state) => ({ chatMessages: [...state.chatMessages, msg] })),
+    setChatOpen: (open) => set({ chatOpen: open }),
+    setChatLoading: (loading) => set({ chatLoading: loading }),
+    clearChat: () => set({ chatMessages: [] }),
+
     reset: () =>
         set({
             address: null,
@@ -183,5 +281,14 @@ export const useAppStore = create<AppState>((set) => ({
             isAnalyzing: false,
             loadingSteps: [],
             activeTab: 'overview',
+            weatherCondition: 'clear',
+            swarmStatus: 'idle',
+            currentAgent: 0,
+            remediationResult: null,
+            procurementResult: null,
+            financeResult: null,
+            chatMessages: [],
+            chatOpen: false,
+            chatLoading: false,
         }),
 }));

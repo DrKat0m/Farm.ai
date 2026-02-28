@@ -113,7 +113,7 @@ export default function LandingPage() {
             className="text-sm uppercase tracking-[0.25em]"
             style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-body)', fontWeight: 600 }}
           >
-            PlantAI
+            Farm.ai
           </span>
         </motion.div>
 
@@ -144,7 +144,7 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springTransition, delay: 0.8 }}
         >
-          Enter your address. PlantAI pulls soil composition, climate history,
+          Enter your address. Farm.ai pulls soil composition, climate history,
           vegetation health, and crop intelligence for your exact property —
           before you buy a single sensor.
         </motion.p>
